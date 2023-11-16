@@ -1,0 +1,45 @@
+dataset:
+  name: "avmnist"
+  path: "${data_dir}/avmnist"
+  modalities: 2
+  batch_size: ${batch_size}
+  num_classes: 10
+
+encoders:
+  image: 
+      type: "LeNet"
+      args:
+        in_channels: 1
+        args_channels: 6
+        additional_layers: 3
+        
+  audio:
+      type: "LeNet"
+      args:
+        in_channels: 1
+        args_channels: 6
+        additional_layers: 5
+
+
+predictors:
+  image: 
+      type: "Classifier"
+      args:
+        in_dim: 48
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 2
+        n_hidden: 64
+        
+  audio:
+      type: "Classifier"
+      args:
+        in_dim: 192
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 2
+        n_hidden: 64
+
+head:
+  type: "WeightedMean"
+  args: 
+    weight_dims: [2, 1, 1]
+    normalize_dim: 0

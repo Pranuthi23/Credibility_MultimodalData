@@ -1,0 +1,42 @@
+
+# Default set of configurations.
+defaults:
+  - experiment: ${dataset}_${model}
+
+# Hydra config
+hydra:
+  run:
+    dir: "${results_dir}/${dataset}/${now:%Y-%m-%d_%H-%M-%S}_${oc.select:tag,}"
+  sweep:
+    dir: "${hydra.run.dir}/${hydra.job.name}"
+    subdir: "${hydra.run.dir}/${hydra.job.num}"
+  job_logging:
+    handlers:
+      file:
+        filename: ${hydra.runtime.output_dir}/${hydra.job.name}.log  # Fixed in hydra-colorlog version 1.2.1
+
+data_dir: "./data"
+results_dir: "./results"
+project_name: "multimodal-fusion"
+lr: 0.0005
+batch_size: 128
+n_bits: 8
+num_workers: 16
+log_interval: 10
+dry_run: False
+seed: ???
+device: "cuda"
+debug: False
+gpu: 0
+epochs: 10
+load_and_eval: False
+precision: 64
+group_tag: ???
+tag: ???
+wandb: False
+swa: False
+profiler: ???
+torch_compile: False
+dataset: ???
+model: "einet"
+classification: True
