@@ -280,13 +280,12 @@ class IndependentNormal(Leaf):
 
     def forward(self, x):
         x = self.gauss(x)
-        x = torch.where(~torch.isnan(x), x, torch.Tensor([0]))
+        x = torch.where(~torch.isnan(x), x, 0)
         x = self.prod(x)
         return x
 
     def __repr__(self):
         return f"IndependentNormal(in_features={self.in_features}, multiplicity={self.multiplicity}, dropout={self.dropout}, cardinality={self.cardinality}, out_shape={self.out_shape})"
-
 
 
 class IndependentDirichlet(Leaf):

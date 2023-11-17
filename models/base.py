@@ -60,13 +60,13 @@ class LitModel(pl.LightningModule, ABC):
 
 
 
-class LateFusionDiscriminative(LitModel):
+class FusionModel(LitModel):
     """
-    Late fusion model. Outputs the probability distribution over a target variable given input from multiple modalities
+    Fusion model. Outputs the probability distribution over a target variable given input from multiple modalities
     """
 
-    def __init__(self, cfg: DictConfig, steps_per_epoch: int):
-        super().__init__(cfg, name="disc", steps_per_epoch=steps_per_epoch)
+    def __init__(self, cfg: DictConfig, steps_per_epoch: int, name="LateFusion"):
+        super().__init__(cfg, name=name, steps_per_epoch=steps_per_epoch)
 
         self.encoders, self.predictors = [], []
         for modality in cfg.experiment.encoders:
@@ -97,6 +97,18 @@ class LateFusionDiscriminative(LitModel):
         self.log(f"Test/{set_name}_accuracy", accuracy, add_dataloader_idx=False)
 
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
+        raise NotImplementedError
+    
+
+class LateFusionDiscriminative(FusionModel):
+    """
+    Late fusion model. Outputs the probability distribution over a target variable given input from multiple modalities
+    """
+
+    def __init__(self, cfg: DictConfig, steps_per_epoch: int, name="LateFusionDiscriminative", ):
+        super().__init__(cfg, name=name, steps_per_epoch=steps_per_epoch)
+
+    def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute cross entropy loss and accuracy of batch.
         Args:
@@ -109,15 +121,51 @@ class LateFusionDiscriminative(LitModel):
         assert len(batch) == self.num_modalities + 1
         
         data, labels = batch[:-1], batch[-1]
-        predictions = []
+        loss, predictions = 0.0,  []
         for unimodal_data, encoder, predictor in zip(data, self.encoders, self.predictors):
             predictions += [predictor(encoder(unimodal_data)).unsqueeze(0)]
-        predictions = torch.cat(predictions, dim=0)
+            ll_y_g_x = predictions[-1].squeeze().log()
+            loss += self.criterion(ll_y_g_x, labels)
+        predictions = torch.cat(predictions, dim=0).detach()
         predictions = self.head(predictions)
         # Criterion is NLL which takes logp( y | x)
         # NOTE: Don't use nn.CrossEntropyLoss because it expects unnormalized logits
         # and applies LogSoftmax first
-        ll_y_g_x = predictions
-        loss = self.criterion(ll_y_g_x, labels)
+        ll_y_g_x = predictions.log()
+        loss += self.criterion(ll_y_g_x, labels)
+        accuracy = (labels == ll_y_g_x.argmax(-1)).sum() / ll_y_g_x.shape[0]
+        return loss, accuracy
+    
+
+
+
+class EarlyFusionDiscriminative(FusionModel):
+    """
+    Early fusion model. Outputs the probability distribution over a target variable given input from multiple modalities
+    """
+
+    def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute cross entropy loss and accuracy of batch.
+        Args:
+            batch: Batch of data.
+
+        Returns:
+            Tuple of (cross entropy loss, accuracy).
+        """
+        # Sanity check that there are #modalities + 1(target) variables in input
+        assert len(batch) == self.num_modalities + 1
+        
+        data, labels = batch[:-1], batch[-1]
+        loss, embeddings = 0.0,  []
+        for unimodal_data, encoder in zip(data, self.encoders):
+            embeddings += [encoder(unimodal_data)]
+        embeddings = torch.cat(embeddings, dim=-1)
+        predictions = self.head(embeddings)
+        # Criterion is NLL which takes logp( y | x)
+        # NOTE: Don't use nn.CrossEntropyLoss because it expects unnormalized logits
+        # and applies LogSoftmax first
+        ll_y_g_x = predictions.log()
+        loss += self.criterion(ll_y_g_x, labels)
         accuracy = (labels == ll_y_g_x.argmax(-1)).sum() / ll_y_g_x.shape[0]
         return loss, accuracy

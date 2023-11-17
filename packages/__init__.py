@@ -1,5 +1,5 @@
 PACKAGE_DICT = {
-    "EinsumNet":"EinsumNet",
+    "EinsumNet":"simple_einet",
     "RatSPN":"RatSPN",
     "MultiBench":"MultiBench"
 }

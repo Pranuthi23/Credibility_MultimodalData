@@ -23,23 +23,37 @@ encoders:
 
 predictors:
   image: 
-      type: "Classifier"
-      args:
-        in_dim: 48
-        out_dim: ${experiment.dataset.num_classes}
-        n_layers: 2
-        n_hidden: 64
+    type: "Classifier"
+    args:
+      in_dim: 48
+      out_dim: ${experiment.dataset.num_classes}
+      n_layers: 2
+      n_hidden: 64
         
   audio:
-      type: "Classifier"
-      args:
-        in_dim: 192
-        out_dim: ${experiment.dataset.num_classes}
-        n_layers: 2
-        n_hidden: 64
+    type: "Classifier"
+    args:
+      in_dim: 192
+      out_dim: ${experiment.dataset.num_classes}
+      n_layers: 2
+      n_hidden: 64
 
 head:
   type: "EinsumNet"
+  takes_probability: True
   args: 
-    weight_dims: [2, 1, 1]
-    normalize_dim: 0
+    num_features: 2
+    num_channels: 1
+    depth: 1
+    num_sums: 20
+    num_leaves: 20
+    num_repetitions: 20
+    num_classes: ${experiment.dataset.num_classes}
+    leaf_type: 'Dirichlet' #'RatNormal'
+    leaf_kwargs:
+      # min_sigma: 0.01
+      # max_sigma: 2.0
+      num_classes: ${experiment.dataset.num_classes}
+    einet_mixture: False
+    layer_type: 'einsum'
+    dropout: 0.0

@@ -26,12 +26,14 @@ from pytorch_lightning.utilities.model_summary import (
 from utils import (
     load_from_checkpoint,
 )
+
 from datasets import get_dataloader
-from models.base import LateFusionDiscriminative
+from models.base import LateFusionDiscriminative, EarlyFusionDiscriminative
 from models import *
+
 # A logger for this file
 logger = logging.getLogger(__name__)
-
+torch.autograd.set_detect_anomaly(True)
 
 def main(cfg: DictConfig):
     """
@@ -103,6 +105,7 @@ def main(cfg: DictConfig):
     else:
         if cfg.classification:
             model = LateFusionDiscriminative(cfg, steps_per_epoch=len(train_loader))
+            # model = EarlyFusionDiscriminative(cfg, steps_per_epoch=len(train_loader))
         
         if cfg.torch_compile:  
             model = torch.compile(model)
@@ -121,7 +124,7 @@ def main(cfg: DictConfig):
     # Create trainer
     trainer = pl.Trainer(
         max_epochs=cfg.epochs,
-        # logger=logger_wandb,
+        logger=logger_wandb,
         accelerator=accelerator,
         devices=devices,
         callbacks=callbacks,

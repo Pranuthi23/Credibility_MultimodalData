@@ -38,5 +38,5 @@ swa: False
 profiler: ???
 torch_compile: False
 dataset: ???
-model: "einet"
+model: "weighted_mean"
 classification: True
