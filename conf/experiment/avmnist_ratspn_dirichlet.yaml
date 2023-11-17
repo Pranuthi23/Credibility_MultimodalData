@@ -1,9 +1,11 @@
+name: "avmnist/ratspn_dirichlet"
 dataset:
   name: "avmnist"
   path: "${data_dir}/avmnist"
   modalities: 2
   batch_size: ${batch_size}
   num_classes: 10
+  class_names: [0,1,2,3,4,5,6,7,8,9]
 
 encoders:
   image: 
@@ -40,6 +42,7 @@ predictors:
 
 head:
   type: "RatSPN"
+  threshold_input: False
   args: 
     num_features: 2
     classes: ${experiment.dataset.num_classes}

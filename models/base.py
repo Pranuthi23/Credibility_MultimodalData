@@ -9,6 +9,9 @@ from omegaconf import DictConfig
 from rtpt import RTPT
 from torch import nn
 from models import *
+import torchmetrics
+import wandb
+
 # Translate the dataloader index to the dataset name
 DATALOADER_ID_TO_SET_NAME = {0: "train", 1: "val", 2: "test"}
 
@@ -38,7 +41,12 @@ class LitModel(pl.LightningModule, ABC):
         )
         self.save_hyperparameters()
         self.steps_per_epoch = steps_per_epoch
-
+        self.metrics = {
+            'AUROC': torchmetrics.AUROC(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
+            'Precision': torchmetrics.Precision(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
+            'Recall': torchmetrics.Recall(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
+            'F1Score': torchmetrics.F1Score(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
+        }
 
     def configure_optimizers(self):
         """
@@ -67,7 +75,7 @@ class FusionModel(LitModel):
 
     def __init__(self, cfg: DictConfig, steps_per_epoch: int, name="LateFusion"):
         super().__init__(cfg, name=name, steps_per_epoch=steps_per_epoch)
-
+        self.cfg = cfg
         self.encoders, self.predictors = [], []
         for modality in cfg.experiment.encoders:
             self.encoders += [eval(cfg.experiment.encoders[modality].type)(**cfg.experiment.encoders[modality].args)]
@@ -80,22 +88,30 @@ class FusionModel(LitModel):
         self.criterion = nn.NLLLoss()
 
     def training_step(self, train_batch, batch_idx):
-        loss, accuracy = self._get_cross_entropy_and_accuracy(train_batch)
+        loss, accuracy, predictions = self._get_cross_entropy_and_accuracy(train_batch)
         self.log("Train/accuracy", accuracy, on_step=True, prog_bar=True)
         self.log("Train/loss", loss, on_step=True)
+        self.log_metrics(predictions, train_batch[-1], "Train/", on_step=True)
         return loss
 
     def validation_step(self, val_batch, batch_idx):
-        loss, accuracy = self._get_cross_entropy_and_accuracy(val_batch)
+        loss, accuracy, predictions = self._get_cross_entropy_and_accuracy(val_batch)
         self.log("Val/accuracy", accuracy, prog_bar=True)
         self.log("Val/loss", loss)
+        self.log_metrics(predictions, val_batch[-1], "Val/")
         return loss
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
-        loss, accuracy = self._get_cross_entropy_and_accuracy(batch)
+        loss, accuracy, predictions = self._get_cross_entropy_and_accuracy(batch)
         set_name = DATALOADER_ID_TO_SET_NAME[dataloader_idx]
         self.log(f"Test/{set_name}_accuracy", accuracy, add_dataloader_idx=False)
-
+        self.log_metrics(predictions, batch[-1], f"Test/{set_name}_", add_dataloader_idx=False)
+    
+    def log_metrics(self, probs, targets, mode='Train/', **kwargs):
+        probs, targets = probs.detach().cpu(), targets.detach().cpu()
+        for metric_name in self.metrics:
+            self.log(f"{mode}{metric_name}",self.metrics[metric_name](probs, targets),**kwargs)
+        
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
         raise NotImplementedError
     
@@ -123,10 +139,14 @@ class LateFusionDiscriminative(FusionModel):
         data, labels = batch[:-1], batch[-1]
         loss, predictions = 0.0,  []
         for unimodal_data, encoder, predictor in zip(data, self.encoders, self.predictors):
-            predictions += [predictor(encoder(unimodal_data)).unsqueeze(0)]
-            ll_y_g_x = predictions[-1].squeeze().log()
+            unimodal_prediction = predictor(encoder(unimodal_data))
+            if(self.cfg.experiment.head.threshold_input):
+                predictions += [unimodal_prediction.argmax(dim=-1).unsqueeze(1)]
+            else:
+                predictions += [unimodal_prediction.unsqueeze(1)]
+            ll_y_g_x = unimodal_prediction.log()
             loss += self.criterion(ll_y_g_x, labels)
-        predictions = torch.cat(predictions, dim=0).detach()
+        predictions = torch.cat(predictions, dim=1).detach()
         predictions = self.head(predictions)
         # Criterion is NLL which takes logp( y | x)
         # NOTE: Don't use nn.CrossEntropyLoss because it expects unnormalized logits
@@ -134,7 +154,7 @@ class LateFusionDiscriminative(FusionModel):
         ll_y_g_x = predictions.log()
         loss += self.criterion(ll_y_g_x, labels)
         accuracy = (labels == ll_y_g_x.argmax(-1)).sum() / ll_y_g_x.shape[0]
-        return loss, accuracy
+        return loss, accuracy, predictions
     
 
 
@@ -168,4 +188,4 @@ class EarlyFusionDiscriminative(FusionModel):
         ll_y_g_x = predictions.log()
         loss += self.criterion(ll_y_g_x, labels)
         accuracy = (labels == ll_y_g_x.argmax(-1)).sum() / ll_y_g_x.shape[0]
-        return loss, accuracy
+        return loss, accuracy, predictions

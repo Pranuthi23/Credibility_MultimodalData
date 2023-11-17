@@ -4,6 +4,7 @@ dataset:
   modalities: 2
   batch_size: ${batch_size}
   num_classes: 10
+  class_names: [0,1,2,3,4,5,6,7,8,9]
 
 encoders:
   image: 
@@ -13,6 +14,7 @@ encoders:
         args_channels: 6
         additional_layers: 3
         
+  name: "avmnist/einet_dirichlet"
   audio:
       type: "LeNet"
       args:
@@ -40,7 +42,7 @@ predictors:
 
 head:
   type: "EinsumNet"
-  takes_probability: True
+  threshold_input: False
   args: 
     num_features: 2
     num_channels: 1
@@ -49,10 +51,8 @@ head:
     num_leaves: 20
     num_repetitions: 20
     num_classes: ${experiment.dataset.num_classes}
-    leaf_type: 'Dirichlet' #'RatNormal'
+    leaf_type: 'Dirichlet' 
     leaf_kwargs:
-      # min_sigma: 0.01
-      # max_sigma: 2.0
       num_classes: ${experiment.dataset.num_classes}
     einet_mixture: False
     layer_type: 'einsum'

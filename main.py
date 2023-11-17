@@ -168,10 +168,10 @@ def preprocess_cfg(cfg: DictConfig):
         cfg.profiler = None  # Accepted by PyTorch Lightning Trainer class
 
     if "tag" not in cfg:
-        cfg.tag = None
+        cfg.tag = cfg.experiment.name
 
     if "group_tag" not in cfg:
-        cfg.group_tag = None
+        cfg.group_tag = cfg.dataset
 
     if "seed" not in cfg:
         cfg.seed = int(time.time())
@@ -183,9 +183,9 @@ def main_hydra(cfg: DictConfig):
         main(cfg)
     except Exception as e:
         logging.critical(e, exc_info=True)  # log exception info at CRITICAL log level
-    # finally:
-    #     # Close wandb instance. Necessary for hydra multi-runs where main() is called multipel times
-    #     wandb.finish()
+    finally:
+        # Close wandb instance. Necessary for hydra multi-runs where main() is called multipel times
+        wandb.finish()
 
 
 if __name__ == "__main__":

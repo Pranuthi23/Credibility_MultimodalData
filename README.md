@@ -17,10 +17,17 @@ Use the following command to run experiments. Ypou can pass values as needed fro
 python main.py dataset=avmnist experiment=avmnist_weighted_mean batch_size=128
 ```
 
-## Currently Supported Late Fusion Methods
-- Weighted Mean
-- RatSPN with dirichlet leaves. This does not seem to be learning - **needs debugging**. Next steps
-    - [ ] Try Replacing with Gaussians
-    - [ ] Implement joint distribution over y, y_i for PC 
-    - [ ] Try Categorical leaf with gumbel softmax
+## Currently Supported and under development Late Fusion Methods
+- [x] Weighted Mean
+- [x] RatSPN with dirichlet leaves. This does not seem to be learning - **needs debugging**. 
+- [x] EinsumNet with Dirichlet and Binomial leaves
+- [x] Try Categorical leaf with gumbel softmax
+- [ ] Try using with Gaussians in feature space - EarlyFusion
+- [ ] Implement joint distribution over y, y_i for PC 
+
+The current training methodology involves independent training of combination function and unimodal predictors.
+Joint training seems unstable for PCs. 
+
+- [ ] Try using warmstart, independent training and then fine tuning
+
     

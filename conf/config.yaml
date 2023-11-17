@@ -1,12 +1,13 @@
 
 # Default set of configurations.
 defaults:
-  - experiment: ${dataset}_${model}
+  - experiment: avmnist_mlp
 
 # Hydra config
 hydra:
   run:
-    dir: "${results_dir}/${dataset}/${now:%Y-%m-%d_%H-%M-%S}_${oc.select:tag,}"
+    # dir: "${results_dir}/${experiment.name}/${now:%Y-%m-%d_%H-%M-%S}_${oc.select:tag}"
+    dir: "${results_dir}/${oc.select:tag}"
   sweep:
     dir: "${hydra.run.dir}/${hydra.job.name}"
     subdir: "${hydra.run.dir}/${hydra.job.num}"
@@ -18,7 +19,7 @@ hydra:
 data_dir: "./data"
 results_dir: "./results"
 project_name: "multimodal-fusion"
-lr: 0.0005
+lr: 0.001
 batch_size: 128
 n_bits: 8
 num_workers: 16
@@ -28,11 +29,11 @@ seed: ???
 device: "cuda"
 debug: False
 gpu: 0
-epochs: 10
+epochs: 50
 load_and_eval: False
 precision: 64
 group_tag: ???
-tag: ???
+tag: ${experiment.name}
 wandb: False
 swa: False
 profiler: ???

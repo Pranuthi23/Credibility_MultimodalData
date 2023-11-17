@@ -1,4 +1,4 @@
-name: "avmnist/weighted_mean"
+name: "avmnist/mlp"
 dataset:
   name: "avmnist"
   path: "${data_dir}/avmnist"
@@ -41,8 +41,10 @@ predictors:
         n_hidden: 64
 
 head:
-  type: "WeightedMean"
+  type: "Classifier"
   threshold_input: False
-  args: 
-    weight_dims: [1, 2, 1]
-    normalize_dim: 1
+  args:
+    in_dim: 20
+    out_dim: ${experiment.dataset.num_classes}
+    n_layers: 1
+    n_hidden: 64

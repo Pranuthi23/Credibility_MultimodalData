@@ -25,10 +25,10 @@ class RatSPN(torch.nn.Module):
     
     def __init__(self, num_features, classes, leaves=10, sums=10, num_splits=10, dropout=0.0):
         super(RatSPN, self).__init__()
-        self.spn = make_rat(num_features=num_features, classes=classes, leaves=leaves, sums=sums, num_splits=num_splits, dropout=dropout)
+        self.model = make_rat(num_features=num_features, classes=classes, leaves=leaves, sums=sums, num_splits=num_splits, dropout=dropout)
         
     def forward(self, x):
-        return self.spn(x.permute(1,0,2)).exp()
+        return self.model(x).exp()
     
 class EinsumNet(torch.nn.Module):
     """Implements a module that returns performs weighted mean."""
@@ -56,7 +56,7 @@ class EinsumNet(torch.nn.Module):
             self.model = Einet(self.config)
             
     def forward(self, x):
-        return self.model(x.permute(1,0,2).unsqueeze(1).unsqueeze(-2).unsqueeze(-2)).exp()
+        return self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3)).exp()
         # return self.model(x.unsqueeze(1))
 
 class FlowCircuit(torch.nn.Module):
