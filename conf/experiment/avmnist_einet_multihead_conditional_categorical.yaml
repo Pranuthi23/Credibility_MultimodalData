@@ -1,7 +1,10 @@
 name: "avmnist/einet_multihead_conditional_categorical"
+classification: True
+multilabel: False
 dataset:
   name: "avmnist"
   path: "${data_dir}/avmnist"
+  args: {}
   modalities: 2
   batch_size: ${batch_size}
   num_classes: 10
@@ -62,7 +65,7 @@ head:
         out_dim: [4000, 4000] #1*2*20*20*10
         n_layers: [2, 2]
         n_hidden: [64, 64]
-        return_probs: False 
+        final_activation: None 
     einet_mixture: False
     layer_type: 'einsum'
     dropout: 0.0

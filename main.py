@@ -28,7 +28,7 @@ from utils import (
 )
 
 from datasets import get_dataloader
-from models.base import LateFusionDiscriminative, EarlyFusionDiscriminative
+from models.base import LateFusionClassifier, LateFusionMultiLabelClassifier
 from models import *
 
 # A logger for this file
@@ -103,10 +103,12 @@ def main(cfg: DictConfig):
             args=cfg,
         )
     else:
-        if cfg.classification:
-            model = LateFusionDiscriminative(cfg, steps_per_epoch=len(train_loader))
-            # model = EarlyFusionDiscriminative(cfg, steps_per_epoch=len(train_loader))
-        
+        if cfg.experiment.classification:
+            if(cfg.experiment.multilabel):
+                model = LateFusionMultiLabelClassifier(cfg, steps_per_epoch=len(train_loader))
+            else:     
+                model = LateFusionClassifier(cfg, steps_per_epoch=len(train_loader))
+            
         if cfg.torch_compile:  
             model = torch.compile(model)
             # raise NotImplementedError("Torch compilation not yet supported.")

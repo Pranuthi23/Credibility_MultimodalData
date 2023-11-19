@@ -1,8 +1,11 @@
 
 name: "avmnist/einet_dirichlet"
+classification: True
+multilabel: False
 dataset:
   name: "avmnist"
   path: "${data_dir}/avmnist"
+  args: {}
   modalities: 2
   batch_size: ${batch_size}
   num_classes: 10

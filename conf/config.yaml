@@ -41,4 +41,3 @@ profiler: ???
 torch_compile: False
 dataset: ???
 model: "weighted_mean"
-classification: True
