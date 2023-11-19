@@ -1,6 +1,9 @@
 # Credibility_MultimodalData
 This repository contains the code for the project - **Probabilistic Multi-Modal Discriminative Learning**. This is under active development.
 
+## Experimental Results
+Current experimental results and observations for this project are summarized here [here](https://api.wandb.ai/links/sahil-sidheekh/x00203ky).
+
 ## Setup
 Create a new virtual environment and install the required packages given in `requirements.txt`.
 
