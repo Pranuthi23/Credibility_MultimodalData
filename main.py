@@ -132,7 +132,7 @@ def main(cfg: DictConfig):
         fast_dev_run=cfg.debug,
         profiler=cfg.profiler,
         default_root_dir=run_dir,
-        enable_checkpointing=False,
+        enable_checkpointing=True,
         detect_anomaly=True,
     )
 

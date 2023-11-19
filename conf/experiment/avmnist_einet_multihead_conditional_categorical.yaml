@@ -1,5 +1,4 @@
-
-name: "avmnist/einet_dirichlet"
+name: "avmnist/einet_multihead_conditional_categorical"
 dataset:
   name: "avmnist"
   path: "${data_dir}/avmnist"
@@ -15,7 +14,7 @@ encoders:
         in_channels: 1
         args_channels: 6
         additional_layers: 3
-
+        
   audio:
       type: "LeNet"
       args:
@@ -43,7 +42,7 @@ predictors:
 
 head:
   type: "EinsumNet"
-  threshold_input: False
+  threshold_input: True
   args: 
     num_features: 2
     num_channels: 1
@@ -52,9 +51,18 @@ head:
     num_leaves: 20
     num_repetitions: 20
     num_classes: ${experiment.dataset.num_classes}
-    leaf_type: 'Dirichlet' 
+    conditional_leaf: True
+    leaf_type: 'ConditionalCategorical' 
     leaf_kwargs:
-      num_classes: ${experiment.dataset.num_classes}
+      cond_fn_type: "MultiHeadClassifier"
+      num_bins: ${experiment.dataset.num_classes}
+      cond_fn_args:
+        n_heads: 2
+        in_dim: [48, 192]
+        out_dim: [4000, 4000] #1*2*20*20*10
+        n_layers: [2, 2]
+        n_hidden: [64, 64]
+        return_probs: False 
     einet_mixture: False
     layer_type: 'einsum'
     dropout: 0.0

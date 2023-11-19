@@ -137,9 +137,10 @@ class LateFusionDiscriminative(FusionModel):
         assert len(batch) == self.num_modalities + 1
         
         data, labels = batch[:-1], batch[-1]
-        loss, predictions = 0.0,  []
+        loss, embeddings, predictions = 0.0,  [], []
         for unimodal_data, encoder, predictor in zip(data, self.encoders, self.predictors):
-            unimodal_prediction = predictor(encoder(unimodal_data))
+            embeddings += [encoder(unimodal_data)]
+            unimodal_prediction = predictor(embeddings[-1])
             if(self.cfg.experiment.head.threshold_input):
                 predictions += [unimodal_prediction.argmax(dim=-1).unsqueeze(1)]
             else:
@@ -147,7 +148,7 @@ class LateFusionDiscriminative(FusionModel):
             ll_y_g_x = unimodal_prediction.log()
             loss += self.criterion(ll_y_g_x, labels)
         predictions = torch.cat(predictions, dim=1).detach()
-        predictions = self.head(predictions)
+        predictions = self.head(predictions, embeddings)
         # Criterion is NLL which takes logp( y | x)
         # NOTE: Don't use nn.CrossEntropyLoss because it expects unnormalized logits
         # and applies LogSoftmax first

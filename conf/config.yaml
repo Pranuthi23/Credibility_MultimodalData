@@ -33,8 +33,9 @@ epochs: 50
 load_and_eval: False
 precision: 64
 group_tag: ???
-tag: ${experiment.name}
+tag: ${experiment.name}/T${trial}
 wandb: False
+trial: 1
 swa: False
 profiler: ???
 torch_compile: False
