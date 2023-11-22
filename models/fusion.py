@@ -12,15 +12,31 @@ from packages.EinsumNet.simple_einet.layers.distributions.bernoulli import Berno
 class WeightedMean(torch.nn.Module):
     """Implements a module that returns performs weighted mean."""
     
-    def __init__(self, weight_dims, normalize_dim):
+    def __init__(self, weight_dims, normalize_dim, multilabel=False):
         super(WeightedMean, self).__init__()
         self.weights = torch.nn.Parameter(torch.randn(size=tuple(weight_dims)))
         self.normalize_dim = normalize_dim
         self.softmax = torch.nn.Softmax(dim=normalize_dim)
+        self.multilabel = multilabel 
         
     def forward(self, x, context=None):
-        x = (x*self.softmax(self.weights)).sum(self.normalize_dim )
+        x = x[:,:,:,0] if self.multilabel else x
+        x = (x*self.softmax(self.weights)).sum(self.normalize_dim)
         return x
+
+class NoisyOR(torch.nn.Module):
+    """Implements a module that returns performs noisy or"""
+    
+    def __init__(self, normalize_dim, multilabel=False):
+        super(NoisyOR, self).__init__()
+        self.normalize_dim = normalize_dim
+        self.multilabel = multilabel
+        
+    def forward(self, x, context=None):
+        x = x[:,:,:,0] if self.multilabel else x
+        y = 1 - torch.prod(1-x,dim=self.normalize_dim)
+        y = y/y.sum(dim=-1,keepdim=True)
+        return y
 
 
 class RatSPN(torch.nn.Module):
@@ -62,12 +78,14 @@ class EinsumNet(torch.nn.Module):
             self.model = Einet(self.config)
             
     def forward(self, x, context=None):
-        probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context).exp()
         if self.multilabel:
+            x = x.view(x.shape[0],-1,x.shape[3]) if len(x.shape)==4 else x.view(x.shape[0],-1) 
+            probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context).exp()
             probs = probs.view(probs.shape[0],-1,2)
             probs = probs/probs.sum(dim=-1, keepdim=True)
             return probs[:,:,0]
         else:    
+            probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context).exp()
             return probs/probs.sum(dim=-1,keepdim=True)
        
 class FlowCircuit(torch.nn.Module):

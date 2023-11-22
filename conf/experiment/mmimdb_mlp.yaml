@@ -78,7 +78,7 @@ head:
   type: "Classifier"
   threshold_input: False
   args:
-    in_dim: 46
+    in_dim: 92
     out_dim: ${experiment.dataset.num_classes}
     n_layers: 1
     n_hidden: 64

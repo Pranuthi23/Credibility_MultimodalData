@@ -18,7 +18,7 @@ import hydra
 import pytorch_lightning as pl
 import torch.utils.data
 from pytorch_lightning import seed_everything
-from pytorch_lightning.callbacks import StochasticWeightAveraging, RichProgressBar
+from pytorch_lightning.callbacks import StochasticWeightAveraging, RichProgressBar, ModelCheckpoint
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.model_summary import (
     ModelSummary,
@@ -28,7 +28,7 @@ from utils import (
 )
 
 from datasets import get_dataloader
-from models.base import LateFusionClassifier, LateFusionMultiLabelClassifier
+from models.base import LateFusionClassifier, LateFusionMultiLabelClassifier, FusionModel
 from models import *
 
 # A logger for this file
@@ -97,11 +97,7 @@ def main(cfg: DictConfig):
 
     # Load or create model
     if cfg.load_and_eval:
-        model = load_from_checkpoint(
-            run_dir,
-            load_fn=LitModel.load_from_checkpoint,
-            args=cfg,
-        )
+        model = LateFusionClassifier.load_from_checkpoint(f"{run_dir}/best_model.pt")
     else:
         if cfg.experiment.classification:
             if(cfg.experiment.multilabel):
@@ -110,9 +106,8 @@ def main(cfg: DictConfig):
                 model = LateFusionClassifier(cfg, steps_per_epoch=len(train_loader))
             
         if cfg.torch_compile:  
-            model = torch.compile(model)
-            # raise NotImplementedError("Torch compilation not yet supported.")
-
+            raise NotImplementedError("Torch compilation not yet supported.")
+        
     # Store number of model parameters
     summary = ModelSummary(model, max_depth=-1)
     logger.info("Model:")
@@ -121,7 +116,10 @@ def main(cfg: DictConfig):
     logger.info(summary)
 
     # Setup callbacks
-    callbacks = []
+    ckpt_callback = ModelCheckpoint(f"{run_dir}/checkpoints", monitor="Val/F1Score", save_top_k=3, mode='max')
+    callbacks = [
+        ckpt_callback
+    ]
 
     # Create trainer
     trainer = pl.Trainer(
@@ -141,13 +139,14 @@ def main(cfg: DictConfig):
     if not cfg.load_and_eval:
         # Fit model
         trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+        model = LateFusionClassifier.load_from_checkpoint(trainer.checkpoint_callback.best_model_path) 
 
     logger.info("Evaluating model...")
     trainer.test(model=model, dataloaders=[train_loader, val_loader, test_loader], verbose=True)
     logger.info("Finished evaluation...")
 
     # Save checkpoint in general models directory to be used across experiments
-    chpt_path = os.path.join(run_dir, "model.pt")
+    chpt_path = os.path.join(run_dir, "best_model.pt")
     logger.info("Saving checkpoint: " + chpt_path)
     trainer.save_checkpoint(chpt_path)
 

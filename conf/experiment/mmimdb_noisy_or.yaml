@@ -1,4 +1,4 @@
-name: "mmimdb-vgg-${experiment.dataset.args.vgg}/weighted_mean"
+name: "mmimdb-vgg-${experiment.dataset.args.vgg}/noisy_or"
 classification: True
 multilabel: True
 dataset:
@@ -75,10 +75,10 @@ predictors:
         final_activation: 'torch.nn.Sigmoid()'
 
 head:
-  type: "WeightedMean"
+  type: "NoisyOR"
   threshold_input: False
   args: 
-    weight_dims: [1, 2, 23]
     normalize_dim: 1
     multilabel: ${experiment.multilabel}
+
 

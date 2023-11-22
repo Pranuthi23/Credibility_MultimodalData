@@ -44,7 +44,7 @@ class LitModel(pl.LightningModule, ABC):
         self.configure_metrics()
     
     def configure_metrics(self):
-       raise NotImplementedError 
+       return "Not Implemented"
    
     def configure_optimizers(self):
         """
@@ -124,10 +124,10 @@ class LateFusionClassifier(FusionModel):
 
     def configure_metrics(self):
         self.metrics = {
-            'AUROC': torchmetrics.AUROC(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
-            'Precision': torchmetrics.Precision(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
-            'Recall': torchmetrics.Recall(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
-            'F1Score': torchmetrics.F1Score(task="multiclass", num_classes=cfg.experiment.dataset.num_classes),
+            'AUROC': torchmetrics.AUROC(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
+            'Precision': torchmetrics.Precision(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
+            'Recall': torchmetrics.Recall(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
+            'F1Score': torchmetrics.F1Score(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
         }
 
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -153,7 +153,9 @@ class LateFusionClassifier(FusionModel):
                 predictions += [unimodal_prediction.unsqueeze(1)]
             ll_y_g_x = unimodal_prediction.log()
             loss += self.criterion(ll_y_g_x, labels)
-        predictions = torch.cat(predictions, dim=1).detach()
+        predictions = torch.cat(predictions, dim=1)
+        if(not self.cfg.joint_training):
+            predictions = predictions.detach()
         predictions = self.head(predictions, embeddings)
         # Criterion is NLL which takes logp( y | x)
         # NOTE: Don't use nn.CrossEntropyLoss because it expects unnormalized logits
@@ -194,22 +196,25 @@ class LateFusionMultiLabelClassifier(FusionModel):
         """
         # Sanity check that there are #modalities + 1(target) variables in input
         assert len(batch) == self.num_modalities + 1
+        
         data, labels = batch[:-1], batch[-1]
         loss, embeddings, predictions = 0.0,  [], []
+        
         for unimodal_data, encoder, predictor in zip(data, self.encoders, self.predictors):
             embeddings += [encoder(unimodal_data)]
             unimodal_prediction = predictor(embeddings[-1])
             predictions += [unimodal_prediction.unsqueeze(1)]
             loss += self.criterion(unimodal_prediction, labels.to(unimodal_prediction.dtype))
-        predictions = torch.cat(predictions, dim=1).detach()
-        predictions = torch.cat([predictions.unsqueeze(-1),1-predictions.unsqueeze(-1)], dim=-1).detach()
-        predictions = predictions.view(predictions.shape[0],-1,predictions.shape[3])
+        
+        predictions = torch.cat(predictions, dim=1)
+        if(not self.cfg.joint_training):
+            predictions = predictions.detach()
+        predictions = torch.cat([predictions.unsqueeze(-1),1-predictions.unsqueeze(-1)], dim=-1)
+        
         if(self.cfg.experiment.head.threshold_input):
             predictions = predictions.argmax(dim=-1)
+        
         predictions = self.head(predictions, embeddings)
-        # Criterion is NLL which takes logp( y | x)
-        # NOTE: Don't use nn.CrossEntropyLoss because it expects unnormalized logits
-        # and applies LogSoftmax first
         loss += self.criterion(predictions.to(torch.float64), labels.to(torch.float64))
         accuracy = self.accuracy(predictions, labels)
         return loss, accuracy, predictions
