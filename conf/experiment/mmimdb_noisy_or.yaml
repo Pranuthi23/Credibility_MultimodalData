@@ -1,0 +1,84 @@
+name: "mmimdb-vgg-${experiment.dataset.args.vgg}/noisy_or"
+classification: True
+multilabel: True
+dataset:
+  name: "mmimdb"
+  path: "${data_dir}/mmimdb/multimodal_imdb.hdf5"
+  modalities: 2
+  args: 
+    test_path: None
+    no_robust: True
+    vgg: True
+  batch_size: ${batch_size}
+  num_classes: 23
+  class_names: [Drama,
+                Comedy,
+                Romance,
+                Thriller,
+                Crime,
+                Action,
+                Adventure,
+                Horror,
+                Documentary,
+                Mystery,
+                Sci-Fi,
+                Fantasy,
+                Family,
+                Biography,
+                War,
+                History,
+                Music,
+                Animation,
+                Musical,
+                Western,
+                Sport,
+                Short,
+                Film-Noir,
+                ]
+
+encoders:
+  text: 
+      type: "MaxOut_MLP"
+      args:
+        num_outputs: 512
+        first_hidden: 512
+        number_input_feats: 300
+        second_hidden: 512
+        linear_layer: False
+        
+  image:
+      type: "MaxOut_MLP"
+      args:
+        num_outputs: 512
+        first_hidden: 1024
+        number_input_feats: 4096
+        second_hidden: 512
+        linear_layer: False
+
+predictors:
+  text: 
+      type: "Classifier"
+      args:
+        in_dim: 512
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 1
+        n_hidden: 64
+        final_activation: 'torch.nn.Sigmoid()'
+        
+  image:
+      type: "Classifier"
+      args:
+        in_dim: 512
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 1
+        n_hidden: 64
+        final_activation: 'torch.nn.Sigmoid()'
+
+head:
+  type: "NoisyOR"
+  threshold_input: False
+  args: 
+    normalize_dim: 1
+    multilabel: ${experiment.multilabel}
+
+
