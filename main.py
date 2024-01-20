@@ -96,8 +96,9 @@ def main(cfg: DictConfig):
     )
 
     # Load or create model
+    model_class = LateFusionMultiLabelClassifier if(cfg.experiment.multilabel) else LateFusionClassifier
     if cfg.load_and_eval:
-        model = LateFusionClassifier.load_from_checkpoint(f"{run_dir}/best_model.pt")
+        model = model_class.load_from_checkpoint(f"{run_dir}/best_model.pt")
     else:
         if cfg.experiment.classification:
             if(cfg.experiment.multilabel):
@@ -106,6 +107,7 @@ def main(cfg: DictConfig):
                 model = LateFusionClassifier(cfg, steps_per_epoch=len(train_loader))
             
         if cfg.torch_compile:  
+            # model = torch.compile(model)
             raise NotImplementedError("Torch compilation not yet supported.")
         
     # Store number of model parameters
@@ -139,7 +141,7 @@ def main(cfg: DictConfig):
     if not cfg.load_and_eval:
         # Fit model
         trainer.fit(model=model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-        model = LateFusionClassifier.load_from_checkpoint(trainer.checkpoint_callback.best_model_path) 
+        model = model_class.load_from_checkpoint(trainer.checkpoint_callback.best_model_path) 
 
     logger.info("Evaluating model...")
     trainer.test(model=model, dataloaders=[train_loader, val_loader, test_loader], verbose=True)

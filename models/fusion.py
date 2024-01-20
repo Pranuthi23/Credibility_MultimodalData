@@ -35,7 +35,7 @@ class NoisyOR(torch.nn.Module):
     def forward(self, x, context=None):
         x = x[:,:,:,0] if self.multilabel else x
         y = 1 - torch.prod(1-x,dim=self.normalize_dim)
-        y = y/y.sum(dim=-1,keepdim=True)
+        y = y if self.multilabel else y/y.sum(dim=-1,keepdim=True)
         return y
 
 
@@ -77,15 +77,16 @@ class EinsumNet(torch.nn.Module):
         else:
             self.model = Einet(self.config)
             
-    def forward(self, x, context=None):
+    def forward(self, x, context=None, marginalized_scopes=None):
         if self.multilabel:
             x = x.view(x.shape[0],-1,x.shape[3]) if len(x.shape)==4 else x.view(x.shape[0],-1) 
-            probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context).exp()
+            probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context,marginalized_scopes=marginalized_scopes).exp()
             probs = probs.view(probs.shape[0],-1,2)
             probs = probs/probs.sum(dim=-1, keepdim=True)
-            return probs[:,:,0]
+            return probs[:,:,1]
+            # return probs
         else:    
-            probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context).exp()
+            probs = self.model(x.unsqueeze(1).unsqueeze(3).unsqueeze(3),cond_input=context,marginalized_scopes=marginalized_scopes).exp()
             return probs/probs.sum(dim=-1,keepdim=True)
        
 class FlowCircuit(torch.nn.Module):

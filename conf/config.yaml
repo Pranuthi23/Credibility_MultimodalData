@@ -29,7 +29,7 @@ seed: ???
 device: "cuda"
 debug: False
 gpu: 0
-epochs: 30
+epochs: 50
 load_and_eval: False
 precision: 64
 group_tag: ???
@@ -42,3 +42,4 @@ torch_compile: False
 dataset: ???
 model: "weighted_mean"
 joint_training: True
+lamda: 1

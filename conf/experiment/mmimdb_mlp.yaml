@@ -80,6 +80,6 @@ head:
   args:
     in_dim: 92
     out_dim: ${experiment.dataset.num_classes}
-    n_layers: 1
-    n_hidden: 64
+    n_layers: 2
+    n_hidden: 128
     final_activation: 'torch.nn.Sigmoid()'
