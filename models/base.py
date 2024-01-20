@@ -124,10 +124,10 @@ class LateFusionClassifier(FusionModel):
 
     def configure_metrics(self):
         self.metrics = {
-            'AUROC': torchmetrics.AUROC(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
-            'Precision': torchmetrics.Precision(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
-            'Recall': torchmetrics.Recall(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
-            'F1Score': torchmetrics.F1Score(task="multiclass", num_classes=self.cfg.experiment.dataset.num_classes),
+            'AUROC': torchmetrics.AUROC(task="multiclass", average='macro', num_classes=self.cfg.experiment.dataset.num_classes),
+            'Precision': torchmetrics.Precision(task="multiclass", average='macro', num_classes=self.cfg.experiment.dataset.num_classes),
+            'Recall': torchmetrics.Recall(task="multiclass", average='macro', num_classes=self.cfg.experiment.dataset.num_classes),
+            'F1Score': torchmetrics.F1Score(task="multiclass", average='macro', num_classes=self.cfg.experiment.dataset.num_classes),
         }
 
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -179,10 +179,11 @@ class LateFusionMultiLabelClassifier(FusionModel):
         
     def configure_metrics(self):
         self.metrics = {
-            'AUROC': torchmetrics.AUROC(task="multilabel", num_labels= self.cfg.experiment.dataset.num_classes),
-            'Precision': torchmetrics.Precision(task="multilabel", num_labels= self.cfg.experiment.dataset.num_classes),
-            'Recall': torchmetrics.Recall(task="multilabel", num_labels= self.cfg.experiment.dataset.num_classes),
-            'F1Score': torchmetrics.F1Score(task="multilabel", num_labels= self.cfg.experiment.dataset.num_classes),
+            'AUROC': torchmetrics.AUROC(task="multilabel", average='weighted', num_labels= self.cfg.experiment.dataset.num_classes),
+            'Precision': torchmetrics.Precision(task="multilabel", average='weighted', num_labels= self.cfg.experiment.dataset.num_classes),
+            'Recall': torchmetrics.Recall(task="multilabel", average='weighted', num_labels= self.cfg.experiment.dataset.num_classes),
+            'F1Score': torchmetrics.F1Score(task="multilabel", average='weighted', num_labels= self.cfg.experiment.dataset.num_classes),
+            'Accuracy': torchmetrics.Accuracy(task="multilabel", average='weighted', num_labels= self.cfg.experiment.dataset.num_classes),
         }
 
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:

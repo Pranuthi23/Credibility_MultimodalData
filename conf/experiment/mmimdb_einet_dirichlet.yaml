@@ -80,7 +80,7 @@ head:
   args: 
     num_features: 46
     num_channels: 1
-    depth: 1
+    depth: 5
     num_sums: 20
     num_leaves: 20
     num_repetitions: 20
