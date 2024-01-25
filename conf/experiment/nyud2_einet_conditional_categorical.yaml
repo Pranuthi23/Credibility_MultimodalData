@@ -1,0 +1,73 @@
+name: "nyud2/einet_conditional_categorical"
+classification: True
+multilabel: False
+dataset:
+  name: "nyud2"
+  path: "${data_dir}/nyud2/nyud2_trainvaltest"
+  args: 
+    FINE_SIZE: 224
+    LOAD_SIZE: 256
+  modalities: 2
+  batch_size: ${batch_size}
+  num_classes: 10
+  class_names: [0,1,2,3,4,5,6,7,8,9]
+encoders:
+  image: 
+      type: "ImageEncoder"
+      args:
+        # in_channels: 3
+        img_embed_pool_type: "avg"
+        num_image_embeds: 1
+        
+  depth: 
+      type: "ImageEncoder"
+      args:
+        # in_channels: 3
+        img_embed_pool_type: "avg"
+        num_image_embeds: 1
+        
+
+
+predictors:
+  image: 
+      type: "Classifier"
+      args:
+        in_dim: 512
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 0
+        n_hidden: 512
+        
+  depth:
+      type: "Classifier"
+      args:
+        in_dim: 512
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 0
+        n_hidden: 512
+
+
+head:
+  type: "EinsumNet"
+  threshold_input: True
+  args: 
+    num_features: 2
+    num_channels: 1
+    depth: 1
+    num_sums: 20
+    num_leaves: 20
+    num_repetitions: 20
+    num_classes: ${experiment.dataset.num_classes}
+    conditional_leaf: True
+    leaf_type: 'ConditionalCategorical' 
+    leaf_kwargs:
+      cond_fn_type: "Classifier"
+      num_bins: ${experiment.dataset.num_classes}
+      cond_fn_args:
+        in_dim: 240
+        out_dim: 8000 #1*2*20*20*10
+        n_layers: 2
+        n_hidden: 64
+        final_activation: None 
+    einet_mixture: False
+    layer_type: 'einsum'
+    dropout: 0.0

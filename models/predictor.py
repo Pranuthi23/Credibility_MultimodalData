@@ -41,3 +41,4 @@ class MultiHeadClassifier(torch.nn.Module):
             out += [head(x_i).unsqueeze(1)]
         return torch.cat(out,dim=1)
         
+

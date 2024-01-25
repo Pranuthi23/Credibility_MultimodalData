@@ -1,0 +1,97 @@
+name: "sunrgbd/weighted_mean"
+classification: True
+multilabel: False
+dataset:
+  name: "sunrgbd"
+  path: "${data_dir}/sunrgbd"
+  args: {}
+  modalities: 2
+  batch_size: ${batch_size}
+  num_classes: 45
+  class_names: [
+                dining_room,
+                living_room,
+                office,
+                discussion_area,
+                computer_room,
+                classroom,
+                furniture_store,
+                conference_room,
+                bedroom,
+                rest_space,
+                bathroom,
+                playroom,
+                corridor,
+                printer_room,
+                kitchen,
+                idk,
+                dining_area,
+                reception,
+                study_space,
+                hotel_room,
+                lecture_theatre,
+                home_office,
+                library,
+                office_kitchen, 
+                lobby,
+                lab,
+                recreation_room,
+                stairs,
+                basement,
+                laundromat,
+                gym,
+                music_room,
+                study,
+                storage_room,
+                office_dining,
+                mail_room,
+                cafeteria,
+                bookstore,
+                reception_room,
+                exhibition,
+                indoor_balcony,
+                dinette,
+                coffee_room,
+                home,
+                dancing_room
+              ]
+encoders:
+  image: 
+      type: "ImageEncoder"
+      args:
+        in_channels: 3
+        img_embed_pool_type: "avg"
+        num_image_embeds: 1
+        
+  depth: 
+      type: "ImageEncoder"
+      args:
+        in_channels: 1
+        img_embed_pool_type: "avg"
+        num_image_embeds: 1
+        
+
+
+predictors:
+  image: 
+      type: "Classifier"
+      args:
+        in_dim: 512
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 0
+        n_hidden: 512
+        
+  depth:
+      type: "Classifier"
+      args:
+        in_dim: 512
+        out_dim: ${experiment.dataset.num_classes}
+        n_layers: 0
+        n_hidden: 512
+
+head:
+  type: "WeightedMean"
+  threshold_input: False
+  args: 
+    weight_dims: [1, 2, 1]
+    normalize_dim: 1

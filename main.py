@@ -18,7 +18,7 @@ import hydra
 import pytorch_lightning as pl
 import torch.utils.data
 from pytorch_lightning import seed_everything
-from pytorch_lightning.callbacks import StochasticWeightAveraging, RichProgressBar, ModelCheckpoint
+from pytorch_lightning.callbacks import StochasticWeightAveraging, RichProgressBar, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.model_summary import (
     ModelSummary,
@@ -34,6 +34,7 @@ from models import *
 # A logger for this file
 logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
+torch.cuda.empty_cache()
 
 def main(cfg: DictConfig):
     """
@@ -119,8 +120,10 @@ def main(cfg: DictConfig):
 
     # Setup callbacks
     ckpt_callback = ModelCheckpoint(f"{run_dir}/checkpoints", monitor="Val/F1Score", save_top_k=3, mode='max')
+    early_stop = EarlyStopping(monitor="Val/accuracy", min_delta=0.001, patience=5)
     callbacks = [
-        ckpt_callback
+        ckpt_callback,
+        early_stop
     ]
 
     # Create trainer
