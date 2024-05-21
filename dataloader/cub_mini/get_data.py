@@ -112,13 +112,3 @@ def get_dataloader(data_dir, train_shuffle = True, batch_size = 40, num_workers 
     return train_dataloader, val_dataloader, test_dataloader
 
 
-
-
-
-if __name__=='__main__':
-    tl, vl, tel = get_dataloader('/mnt/datasets/cub_mini')
-    trainiter = iter(tl)
-    Images, Depths, labels = next(trainiter)
-    print(Images.shape)
-    print(((Depths.shape)))
-    print((labels.shape))
