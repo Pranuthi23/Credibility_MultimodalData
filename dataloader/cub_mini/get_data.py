@@ -99,7 +99,7 @@ def read_data(str_name, ratio, Normal=1):
     return traindata, testdata
 
 
-def get_dataloader(data_dir, train_shuffle = True, batch_size = 40, num_workers = 16):
+def get_dataloader(data_dir, train_shuffle = True, batch_size = 40, num_workers = 8):
 
     X_train, X_test = read_data(os.path.join(data_dir, 'cub_googlenet_doc2vec_c10.mat'), 0.8)
     X_train, X_val = random_split(X_train, [0.7,0.3])
