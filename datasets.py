@@ -1,9 +1,9 @@
 from packages.MultiBench.datasets.avmnist.get_data import get_dataloader as avmnist_data_loader
 from packages.MultiBench.datasets.imdb.get_data import get_dataloader as mmimdb_data_loader
-from data.cub.get_data import get_dataloader as cub_data_loader
-from data.nyud2.get_data import get_dataloader as nyud2_data_loader
-from data.sunrgb_d.get_data import get_dataloader as sunrgb_d_data_loader
-from data.cub_mini.get_data import get_dataloader as cub_mini_data_loader
+from dataloader.cub.get_data import get_dataloader as cub_data_loader
+from dataloader.nyud2.get_data import get_dataloader as nyud2_data_loader
+from dataloader.sunrgb_d.get_data import get_dataloader as sunrgb_d_data_loader
+from dataloader.cub_mini.get_data import get_dataloader as cub_mini_data_loader
 
 
 DATASET_DICT = {
