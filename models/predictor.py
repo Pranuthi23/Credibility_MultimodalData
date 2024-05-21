@@ -22,7 +22,7 @@ class Classifier(torch.nn.Module):
         super(Classifier, self).__init__()
         self.head = make_classifier(in_dim, out_dim, n_layers, n_hidden, activation, final_activation)
         
-    def forward(self, x, context=None):
+    def forward(self, x, context=None,  **kwargs):
         x = torch.cat(x, dim=-1) if type(x) == list else x
         return self.head(x)
         
@@ -35,7 +35,7 @@ class MultiHeadClassifier(torch.nn.Module):
             make_classifier(in_dim[i], out_dim[i], n_layers[i], n_hidden[i], activation, final_activation) for i in range(n_heads)
         ])
     
-    def forward(self, x, context=None):
+    def forward(self, x, context=None,  **kwargs):
         out = []
         for x_i, head in zip(x, self.heads):
             out += [head(x_i).unsqueeze(1)]

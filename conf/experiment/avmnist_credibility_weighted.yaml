@@ -1,4 +1,5 @@
-name: "avmnist/einet_conditional_categorical"
+
+name: "avmnist/credibility_weighted"
 classification: True
 multilabel: False
 dataset:
@@ -17,7 +18,7 @@ encoders:
         in_channels: 1
         args_channels: 6
         additional_layers: 3
-        
+
   audio:
       type: "LeNet"
       args:
@@ -44,27 +45,19 @@ predictors:
       n_hidden: 64
 
 head:
-  type: "EinsumNet"
-  threshold_input: True
+  type: "CredibilityWeightedMean"
+  threshold_input: False
   args: 
     num_features: 2
     num_channels: 1
     depth: 1
-    num_sums: 20
-    num_leaves: 20
-    num_repetitions: 20
+    num_sums: 10
+    num_leaves: 10
+    num_repetitions: 10
     num_classes: ${experiment.dataset.num_classes}
-    conditional_leaf: True
-    leaf_type: 'ConditionalCategorical' 
+    leaf_type: 'Dirichlet' 
     leaf_kwargs:
-      cond_fn_type: "Classifier"
-      num_bins: ${experiment.dataset.num_classes}
-      cond_fn_args:
-        in_dim: 240
-        out_dim: 8000 #1*2*20*20*10
-        n_layers: 2
-        n_hidden: 64
-        final_activation: None 
+      num_classes: ${experiment.dataset.num_classes}
     einet_mixture: False
     layer_type: 'einsum'
-    dropout: 0.0
+    dropout: 0.2

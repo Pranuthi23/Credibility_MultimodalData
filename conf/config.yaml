@@ -2,6 +2,7 @@
 # Default set of configurations.
 defaults:
   - experiment: avmnist_mlp
+  - _self_
 
 # Hydra config
 hydra:
@@ -43,3 +44,4 @@ dataset: ???
 model: "weighted_mean"
 joint_training: True
 lamda: 1
+patience: 30

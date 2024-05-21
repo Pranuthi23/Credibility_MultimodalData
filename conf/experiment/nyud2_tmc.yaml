@@ -53,3 +53,5 @@ head:
   threshold_input: False
   args: 
     classes: ${experiment.dataset.num_classes}
+    multilabel: False
+    modalities: ${experiment.dataset.modalities}

@@ -1,28 +1,26 @@
-name: "nyud2/einet_binomial"
+name: "sunrgb_d/credibility_weighted"
 classification: True
 multilabel: False
 dataset:
-  name: "nyud2"
-  path: "${data_dir}/nyud2/nyud2_trainvaltest"
+  name: "sunrgb_d"
+  path: "${data_dir}/sunrgb_d/conc_data"
   args: 
     FINE_SIZE: 224
     LOAD_SIZE: 256
   modalities: 2
   batch_size: ${batch_size}
-  num_classes: 10
-  class_names: [0,1,2,3,4,5,6,7,8,9]
+  num_classes: 19
+  class_names: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
 encoders:
   image: 
       type: "ImageEncoder"
       args:
-        # in_channels: 3
         img_embed_pool_type: "avg"
         num_image_embeds: 3
         
   depth: 
       type: "ImageEncoder"
       args:
-        # in_channels: 3
         img_embed_pool_type: "avg"
         num_image_embeds: 3
         
@@ -48,19 +46,19 @@ predictors:
 
 
 head:
-  type: "EinsumNet"
-  threshold_input: True
+  type: "CredibilityWeightedMean"
+  threshold_input: False
   args: 
     num_features: 2
     num_channels: 1
     depth: 1
-    num_sums: 20
-    num_leaves: 20
-    num_repetitions: 20
+    num_sums: 10
+    num_leaves: 10
+    num_repetitions: 10
     num_classes: ${experiment.dataset.num_classes}
-    leaf_type: 'Binomial' 
+    leaf_type: 'Dirichlet' 
     leaf_kwargs:
-      total_count: ${experiment.dataset.num_classes}
+      num_classes: ${experiment.dataset.num_classes}
     einet_mixture: False
     layer_type: 'einsum'
-    dropout: 0.0
+    dropout: 0.2

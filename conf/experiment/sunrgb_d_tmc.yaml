@@ -15,14 +15,12 @@ encoders:
   image: 
       type: "ImageEncoder"
       args:
-        # in_channels: 3
         img_embed_pool_type: "avg"
         num_image_embeds: 3
         
   depth: 
       type: "ImageEncoder"
       args:
-        # in_channels: 3
         img_embed_pool_type: "avg"
         num_image_embeds: 3
         
@@ -52,5 +50,7 @@ head:
   threshold_input: False
   args: 
     classes: ${experiment.dataset.num_classes}
+    multilabel: False
+    modalities: ${experiment.dataset.modalities}
 
 
