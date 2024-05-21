@@ -37,7 +37,7 @@ class LitModel(pl.LightningModule, ABC):
         super().__init__()
         self.cfg = cfg
         self.rtpt = RTPT(
-            name_initials="SS",
+            name_initials="MultiModal",
             experiment_name="fusion_" + name + ("_" + str(cfg.tag) if cfg.tag else ""),
             max_iterations=cfg.epochs + 1,
         )
