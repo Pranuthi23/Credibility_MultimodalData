@@ -216,17 +216,3 @@ def get_dataloader(data_dir,FINE_SIZE, LOAD_SIZE, batch_size=40, num_workers=8, 
     return train_loader, val_loader, test_loader
 
 
-
-if __name__ == '__main__':
-    tl, vl , tel = get_dataloader('/mnt/datasets/sunrgb_d/conc_data', FINE_SIZE= 224, LOAD_SIZE= 256)
-
-    trainiter = iter(tel)
-    # i = next(trainiter)
-    # # print(i['A'])
-    # # print(i['B'])
-    # print(i['img_name'])
-    # print(i['label'])
-    Images, Depths, labels = next(trainiter)
-    print(Images.shape)
-    print(((Depths.shape)))
-    print(Counter(np.array(labels)))

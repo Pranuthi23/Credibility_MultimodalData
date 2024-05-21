@@ -142,12 +142,4 @@ def get_dataloader(data_dir, batch_size=40, num_workers=8, train_shuffle=True):
     return train_dataloader, val_dataloader, test_dataloader
 
 
-if __name__ == "__main__":
-    train_loader,vl, test_loader = get_dataloader(data_dir='/mnt/datasets/cub/CUB_200_2011')
 
-    for (idx, batch) in enumerate(vl):
-        print("Batch: ", idx)
-        x1 = batch[0]
-        x2 = batch[1]
-        y = batch[2]
-        print(x2.shape)
