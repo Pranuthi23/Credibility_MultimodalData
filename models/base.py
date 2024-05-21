@@ -11,6 +11,8 @@ from torch import nn
 from models import *
 import torchmetrics
 import wandb
+import numpy as np
+from sklearn.metrics import accuracy_score, roc_auc_score, precision_score, recall_score, f1_score
 
 # Translate the dataloader index to the dataset name
 DATALOADER_ID_TO_SET_NAME = {0: "train", 1: "val", 2: "test"}
@@ -76,7 +78,10 @@ class FusionModel(LitModel):
         self.cfg = cfg
         self.encoders, self.predictors = [], []
         for modality in cfg.experiment.encoders:
-            self.encoders += [eval(cfg.experiment.encoders[modality].type)(**cfg.experiment.encoders[modality].args)]
+            if(cfg.experiment.encoders[modality].type is None):
+                self.encoders += [None]
+            else:
+                self.encoders += [eval(cfg.experiment.encoders[modality].type)(**cfg.experiment.encoders[modality].args)]
         for modality in cfg.experiment.predictors:
             self.predictors += [eval(cfg.experiment.predictors[modality].type)(**cfg.experiment.predictors[modality].args)]
         self.head = eval(cfg.experiment.head.type)(**cfg.experiment.head.args)
@@ -84,6 +89,8 @@ class FusionModel(LitModel):
         self.num_modalities = cfg.experiment.dataset.modalities
         # Define loss function
         self.criterion = nn.NLLLoss()
+        self.test_pred = []
+        self.test_target = []
 
     def training_step(self, train_batch, batch_idx):
         loss, accuracy, predictions = self._get_cross_entropy_and_accuracy(train_batch)
@@ -102,8 +109,17 @@ class FusionModel(LitModel):
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         loss, accuracy, predictions = self._get_cross_entropy_and_accuracy(batch)
         set_name = DATALOADER_ID_TO_SET_NAME[dataloader_idx]
+        if(set_name == "test"):
+            self.test_pred += [predictions]
+            self.test_target += [batch[-1]]
+            # #scikit metrics
+            # self.test_pred += [np.array(predictions.cpu().detach())]
+            # self.test_target += [np.array(batch[-1].cpu().detach())]
+
         self.log(f"Test/{set_name}_accuracy", accuracy, add_dataloader_idx=False)
         self.log_metrics(predictions, batch[-1], f"Test/{set_name}_", add_dataloader_idx=False)
+
+        
     
     def log_metrics(self, probs, targets, mode='Train/', **kwargs):
         probs, targets = probs.detach().cpu(), targets.detach().cpu()
@@ -112,6 +128,20 @@ class FusionModel(LitModel):
         
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
         raise NotImplementedError
+    
+
+    def on_test_end(self) -> None:
+        self.test_pred   = torch.cat(self.test_pred).cpu().detach()
+        self.test_target = torch.cat(self.test_target).cpu().detach()
+
+        
+        print(self.test_pred.shape)
+        print(self.test_target.shape)
+        for metric_name in self.metrics:
+            metric = self.metrics[metric_name].cpu()
+            print("Test/", metric_name, metric(self.test_pred, self.test_target))
+        
+        
     
 
 class LateFusionClassifier(FusionModel):
@@ -145,7 +175,11 @@ class LateFusionClassifier(FusionModel):
         data, labels = batch[:-1], batch[-1]
         loss, embeddings, predictions = 0.0,  [], []
         for unimodal_data, encoder, predictor in zip(data, self.encoders, self.predictors):
-            embeddings += [encoder(unimodal_data)]
+            if(encoder is not None):
+                embeddings += [encoder(unimodal_data)]
+            else:
+                embeddings += [unimodal_data]
+            
             unimodal_prediction = predictor(embeddings[-1])
             if(self.cfg.experiment.head.threshold_input):
                 predictions += [unimodal_prediction.argmax(dim=-1).unsqueeze(1)]
@@ -153,8 +187,9 @@ class LateFusionClassifier(FusionModel):
                 predictions += [unimodal_prediction.unsqueeze(1)]
             ll_y_g_x = unimodal_prediction.log()
             loss += self.criterion(ll_y_g_x, labels)
+
         predictions = torch.cat(predictions, dim=1)
-        if(not self.cfg.joint_training):
+        if(not self.cfg.joint_training or self.current_epoch <=5):
             predictions = predictions.detach()
         predictions = self.head(predictions, embeddings)
         # Criterion is NLL which takes logp( y | x)
@@ -162,6 +197,8 @@ class LateFusionClassifier(FusionModel):
         # and applies LogSoftmax first
         ll_y_g_x = predictions.log()
         loss += self.criterion(ll_y_g_x, labels)
+        if(hasattr(self.head,"loss")):
+            loss += self.head.loss[:,labels].mean()
         accuracy = (labels == ll_y_g_x.argmax(-1)).sum() / ll_y_g_x.shape[0]
         return loss, accuracy, predictions
     

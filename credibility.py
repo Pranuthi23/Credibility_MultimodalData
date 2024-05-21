@@ -30,12 +30,24 @@ from utils import (
 from datasets import get_dataloader
 from models.base import LateFusionClassifier, LateFusionMultiLabelClassifier, FusionModel
 from models import *
+import json 
 
 # A logger for this file
 logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
 
+ 
+class JSD(torch.nn.Module):
+    def __init__(self):
+        super(JSD, self).__init__()
+        self.kl = torch.nn.KLDivLoss(reduction='none', log_target=True)
 
+    def forward(self, p: torch.tensor, q: torch.tensor, eps=1e-12):
+        p, q = p.clamp(eps), q.clamp(eps)
+        p, q = p.view(-1, p.size(-1)), q.view(-1, q.size(-1))
+        m = (0.5 * (p + q)).log()
+        return 0.5 * (self.kl(p.log(), m) + self.kl(q.log(), m))
+    
 class NoisyLateFusionClassifier(LateFusionClassifier):
     """
     Noisy Late fusion model. Outputs the probability distribution over a target variable given input from multiple modalities
@@ -44,7 +56,7 @@ class NoisyLateFusionClassifier(LateFusionClassifier):
         self.lamda = cfg.lamda 
         super().__init__(cfg, name=name, steps_per_epoch=steps_per_epoch)
         self.alpha = torch.sigmoid(torch.zeros(cfg.experiment.dataset.num_classes))
-        
+        self.test_credibility = []
     def _get_cross_entropy_and_accuracy(self, batch) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute cross entropy loss and accuracy of batch.
@@ -59,7 +71,10 @@ class NoisyLateFusionClassifier(LateFusionClassifier):
         data, labels = batch[:-1], batch[-1]
         loss, embeddings, predictions = 0.0,  [], []
         for i, (unimodal_data, encoder, predictor) in enumerate(zip(data, self.encoders, self.predictors)):
-            embeddings += [encoder(unimodal_data)]
+            if(encoder is not None):
+                embeddings += [encoder(unimodal_data)]
+            else:
+                embeddings += [unimodal_data]
             unimodal_prediction = predictor(embeddings[-1])
             if(i==self.cfg.experiment.noisy_modality):
                 noise = torch.distributions.Dirichlet(self.alpha).sample([unimodal_data.shape[0]]).to(unimodal_prediction.device)
@@ -96,16 +111,21 @@ class NoisyLateFusionClassifier(LateFusionClassifier):
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         loss, accuracy, predictions_in, predictions_out = self._get_cross_entropy_and_accuracy(batch)
         set_name = DATALOADER_ID_TO_SET_NAME[dataloader_idx]
+        if(set_name == "test"):
+            self.test_pred += [predictions_out]
+            self.test_target += [batch[-1]]
         self.log(f"Test/{set_name}_accuracy", accuracy, add_dataloader_idx=False)
         self.log_metrics(predictions_in, predictions_out, batch[-1], f"Test/{set_name}_", add_dataloader_idx=False)
-        
+    
     def log_metrics(self, predictions_in, predictions_out, targets, mode='Train/', **kwargs):
         credibility = []
         for i in range(self.cfg.experiment.dataset.modalities):
-            p_y_pi = self.head(predictions_in, marginalized_scopes=[i])
+            p_y_pi = self.head(predictions_in, marginalized_scopes=[i]).exp()
+            p_y_pi = p_y_pi / p_y_pi.sum(dim=-1, keepdim=True)
             credibility += [-torch.nn.functional.kl_div(predictions_out,p_y_pi).view(-1,1)]
+            # credibility += [-JSD()(predictions_out,p_y_pi.exp()).exp().sum(dim=-1).view(-1,1)]
         credibility = torch.cat(credibility,dim=-1)
-        # credibility = credibility/credibility.sum(dim=-1, keepdim=True)
+        credibility = credibility/credibility.sum(dim=-1, keepdim=True)
         credibility = credibility.mean(dim=0).detach().cpu()
         for i in range(self.cfg.experiment.dataset.modalities):     
             self.log(f"{mode}Credibility-Modality-{i}",credibility[i])
@@ -203,20 +223,65 @@ def main(cfg: DictConfig):
         detect_anomaly=True,
     )
 
-    if not cfg.load_and_eval:
-        # Fit model
-        trainer.fit(model=noisy_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
-        noisy_model = noisy_model_class.load_from_checkpoint(trainer.checkpoint_callback.best_model_path) 
+    # if not cfg.load_and_eval:
+    #     # Fit model
+    #     trainer.fit(model=noisy_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    #     noisy_model = noisy_model_class.load_from_checkpoint(trainer.checkpoint_callback.best_model_path) 
 
-    logger.info("Evaluating model...")
+    performance_summary = {
+        "no_noise": {},
+        "noise_in_test": {},
+        "noise_in_test_and_train":{}
+    }
+    
+    logger.info("Evaluating Orignal Base Model...")
+    trainer.test(model=base_model, dataloaders=[train_loader, val_loader, test_loader], verbose=True)
+    
+            
+    logger.info("Evaluating Noisy Trained Model...")
     trainer.test(model=noisy_model, dataloaders=[train_loader, val_loader, test_loader], verbose=True)
-    logger.info("Finished evaluation...")
-
-    # Save checkpoint in general models directory to be used across experiments
-    chpt_path = os.path.join(run_dir, "best_noisy_model.pt")
-    logger.info("Saving checkpoint: " + chpt_path)
-    trainer.save_checkpoint(chpt_path)
-
+    
+    for metric_name in base_model.metrics:
+        metric = base_model.metrics[metric_name].cpu()
+        performance_summary["no_noise"][metric_name] = metric(base_model.test_pred, base_model.test_target).item()
+        
+    for metric_name in noisy_model.metrics:
+        metric = noisy_model.metrics[metric_name].cpu()
+        performance_summary["noise_in_test"][metric_name] = metric(noisy_model.test_pred, noisy_model.test_target).item()
+        
+    # trainer.fit(model=noisy_model, train_dataloaders=train_loader, val_dataloaders=val_loader)
+    # noisy_model = noisy_model_class.load_from_checkpoint(trainer.checkpoint_callback.best_model_path) 
+    
+    # trainer.test(model=noisy_model, dataloaders=[train_loader, val_loader, test_loader], verbose=True)
+    # for metric_name in noisy_model.metrics:
+    #     metric = noisy_model.metrics[metric_name].cpu()
+    #     performance_summary["noise_in_test_and_train"][metric_name] = metric(noisy_model.test_pred, noisy_model.test_target).item()
+    
+    # mean_credibility = []
+    # for batch in test_loader:
+    #     loss, accuracy, predictions_in, predictions_out = noisy_model._get_cross_entropy_and_accuracy(batch)
+    #     credibility = []
+    #     for i in range(noisy_model.cfg.experiment.dataset.modalities):
+    #         p_y_pi = noisy_model.head(predictions_in, marginalized_scopes=[i]).exp()
+    #         p_y_pi = p_y_pi / p_y_pi.sum(dim=-1, keepdim=True)
+    #         credibility += [-torch.nn.functional.kl_div(predictions_out,p_y_pi).view(-1,1)]
+    #         # credibility += [-JSD()(predictions_out,p_y_pi.exp()).exp().sum(dim=-1).view(-1,1)]
+    #     credibility = torch.cat(credibility,dim=-1)
+    #     credibility = credibility/credibility.sum(dim=-1, keepdim=True)
+    #     credibility = credibility.mean(dim=0).detach().cpu()
+    #     mean_credibility += [credibility.view(1,-1)]
+    # mean_credibility = torch.cat(mean_credibility, dim=0).mean(dim=0)
+    # performance_summary["noise_in_test_and_train"]["mean_credibility"] = mean_credibility.detach().cpu().numpy()
+    
+    print(performance_summary)
+    summary_dir = os.path.join(run_dir, "summary")
+    os.makedirs(summary_dir, exist_ok=True)
+    with open(os.path.join(summary_dir,f'noisy-modality={cfg.experiment.noisy_modality}-lamda={cfg.lamda}.json'), 'w') as fp:
+        json.dump(performance_summary, fp)
+    # # Save checkpoint in general models directory to be used across experiments
+    # chpt_path = os.path.join(run_dir, "best_noisy_model.pt")
+    # logger.info("Saving checkpoint: " + chpt_path)
+    # trainer.save_checkpoint(chpt_path)
     # device = torch.device("cuda") if torch.cuda.is_available() else 'cpu'
     # # Create dataloader
     # train_loader, val_loader, test_loader = get_dataloader(cfg)

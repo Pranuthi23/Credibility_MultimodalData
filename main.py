@@ -18,7 +18,7 @@ import hydra
 import pytorch_lightning as pl
 import torch.utils.data
 from pytorch_lightning import seed_everything
-from pytorch_lightning.callbacks import StochasticWeightAveraging, RichProgressBar, ModelCheckpoint
+from pytorch_lightning.callbacks import StochasticWeightAveraging, RichProgressBar, ModelCheckpoint, EarlyStopping
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.model_summary import (
     ModelSummary,
@@ -34,6 +34,7 @@ from models import *
 # A logger for this file
 logger = logging.getLogger(__name__)
 torch.autograd.set_detect_anomaly(True)
+torch.cuda.empty_cache()
 
 def main(cfg: DictConfig):
     """
@@ -42,6 +43,11 @@ def main(cfg: DictConfig):
     Args:
         cfg: Config file.
     """
+
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
+
+    start_event.record()
     preprocess_cfg(cfg)
 
     # Get hydra config
@@ -98,7 +104,7 @@ def main(cfg: DictConfig):
     # Load or create model
     model_class = LateFusionMultiLabelClassifier if(cfg.experiment.multilabel) else LateFusionClassifier
     if cfg.load_and_eval:
-        model = model_class.load_from_checkpoint(f"{run_dir}/best_model.pt")
+        model = model_class.load_from_checkpoint(f"{run_dir}/best_model.pt", map_location="cuda:0")
     else:
         if cfg.experiment.classification:
             if(cfg.experiment.multilabel):
@@ -119,9 +125,12 @@ def main(cfg: DictConfig):
 
     # Setup callbacks
     ckpt_callback = ModelCheckpoint(f"{run_dir}/checkpoints", monitor="Val/F1Score", save_top_k=3, mode='max')
+    early_stop = EarlyStopping(monitor="Val/F1Score", min_delta=0.0001, patience=cfg.patience, mode='max')
     callbacks = [
-        ckpt_callback
+        ckpt_callback,
+        early_stop
     ]
+
 
     # Create trainer
     trainer = pl.Trainer(
@@ -151,6 +160,15 @@ def main(cfg: DictConfig):
     chpt_path = os.path.join(run_dir, "best_model.pt")
     logger.info("Saving checkpoint: " + chpt_path)
     trainer.save_checkpoint(chpt_path)
+
+    end_event.record()
+    torch.cuda.synchronize()
+    time_elapsed = start_event.elapsed_time(end_event)
+
+    print(f"Time Elapsed: {time_elapsed} milliseconds")
+    print(f"Allocated memory: {torch.cuda.memory_allocated()} bytes")
+    print(f"Reserved memory: {torch.cuda.memory_reserved()} bytes")
+    print(f"Max Reserved memory: {torch.cuda.max_memory_reserved()} bytes")
 
 
 def preprocess_cfg(cfg: DictConfig):
