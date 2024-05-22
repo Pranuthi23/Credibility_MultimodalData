@@ -12,10 +12,13 @@ This repository has dependencies with following three packages. They are organiz
 
 ## To Run
 Specify the hyperparameter configurations for your experiment in the appropriate config file inside `conf/`. 
-Use the following command to run experiments. You can pass values as needed from the command line for the hyperparameters specified in the config file.
+Use the following commands to run experiments. You can pass values as needed from the command line for the hyperparameters specified in the config file.
 
 ```bash
 python main.py dataset=avmnist experiment=avmnist_weighted_mean batch_size=128 group_tag=avmnist
+```
+```bash
+python credibility.py dataset=avmnist experiment=avmnist_weighted_mean group_tag=avmnist lamda=0.1 noisy_modality=0
 ```
 
 ## Currently Supported Late Fusion Methods

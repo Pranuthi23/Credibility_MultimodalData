@@ -27,7 +27,7 @@ wandb=False
 load_and_eval=True
 joint_training=True
 
-group_tag="UAI"
+group_tag="neurips2024"
 for ((trial=1;trial<=n_trials;trial++))
 do
         
