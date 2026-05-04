@@ -120,10 +120,9 @@ class NoisyLateFusionClassifier(LateFusionClassifier):
     def log_metrics(self, predictions_in, predictions_out, targets, mode='Train/', **kwargs):
         credibility = []
         for i in range(self.cfg.experiment.dataset.modalities):
-            p_y_pi = self.head(predictions_in, marginalized_scopes=[i]).exp()
-            p_y_pi = p_y_pi / p_y_pi.sum(dim=-1, keepdim=True)
-            credibility += [-torch.nn.functional.kl_div(predictions_out,p_y_pi).view(-1,1)]
-            # credibility += [-JSD()(predictions_out,p_y_pi.exp()).exp().sum(dim=-1).view(-1,1)]
+            p_y_pi = self.head.model(predictions_in.unsqueeze(1).unsqueeze(3).unsqueeze(3), marginalized_scopes=[i]).exp()
+            p_y_pi = p_y_pi/p_y_pi.sum(dim=-1, keepdim=True)
+            credibility += [torch.nn.functional.kl_div(probs.log(), p_y_pi, reduction='none').sum(dim=-1, keepdim=True)]
         credibility = torch.cat(credibility,dim=-1)
         credibility = credibility/credibility.sum(dim=-1, keepdim=True)
         credibility = credibility.mean(dim=0).detach().cpu()
